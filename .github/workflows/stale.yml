@@ -32,4 +32,4 @@ jobs:
           exempt-issue-labels: "bug,dependency,accessibility"
           exempt-pr-labels: "keep-me"
           close-issue-reason: "not_planned"
-          days-before-pr-close: -1
+          days-before-pr-close: -8
