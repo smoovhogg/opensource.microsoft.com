@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '.github/workflows/*.yml'
+    #paths-ignore:
+    #  - '.github/workflows/*.yml'
 
 env:
   REGISTRY: docker.pkg.github.com
@@ -63,39 +63,24 @@ jobs:
       with:
         name: website
         path: /home/runner/work/opensource.microsoft.com/opensource.microsoft.com/site.zip
-    - name: "Connect to Azure Files"
-      env:
-        AZURE_FILES_ENDPOINT: ${{ secrets.AZURE_FILES_ENDPOINT }}
-        AZURE_FILES_SP: ${{ secrets.AZURE_FILES_SP }}
-        AZURE_FILES_USERNAME: ${{ secrets.AZURE_FILES_USERNAME }}
-      run: |
-        echo Making mountpoint /mnt/files
-        sudo mkdir -p /mnt/files
-        echo Preparing creds...
-        if [ ! -d "/etc/smbcredentials" ]; then
-          echo creating smb creds folder
-          sudo mkdir /etc/smbcredentials
-        fi
-        echo Preparing share-specific creds...
-        if [ ! -f "/etc/smbcredentials/files.cred" ]; then
-          echo Storing share info...
-          echo username=$AZURE_FILES_USERNAME >> ./files.cred
-          echo password=$AZURE_FILES_SP >> ./files.cred
-          sudo mv ./files.cred /etc/smbcredentials/
-        fi
-        echo Setting file mode...
-        sudo chmod 600 /etc/smbcredentials/files.cred
-        echo Writing to /etc/fstab
-        echo Mounting...
-        sudo mount -t cifs //$AZURE_FILES_ENDPOINT/dev /mnt/files -o vers=3.0,credentials=/etc/smbcredentials/files.cred,dir_mode=0777,file_mode=0777,serverino
-    - name: "Copy site"
+    - name: "List site files"
       working-directory: /home/runner/work/opensource.microsoft.com/opensource.microsoft.com
       run: |
-        cp site.zip /mnt/files/
-        cp content.json /mnt/files/
-    - name: "Disconnect from Azure Files"
-      run: |
-        sudo umount /mnt/files
+        ls -la site.zip content.json
+    - uses: azure/CLI@v1
+      name: "Upload to share via CLI"
+      with:
+        inlineScript: |
+          az storage file upload \
+            --account-key ${{ secrets.AZURE_FILES_SP }} \
+            --account-name ${{ secrets.AZURE_FILES_USERNAME }} \
+            --source /home/runner/work/opensource.microsoft.com/opensource.microsoft.com/site.zip \
+            -s dev
+          az storage file upload \
+            --account-key ${{ secrets.AZURE_FILES_SP }} \
+            --account-name ${{ secrets.AZURE_FILES_USERNAME }} \
+            --source /home/runner/work/opensource.microsoft.com/opensource.microsoft.com/content.json \
+            -s dev
     - name: "Prepare to AzCopy..."
       working-directory: /home/runner/work
       run: |
